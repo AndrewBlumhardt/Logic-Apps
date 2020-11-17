@@ -6,10 +6,6 @@
             "defaultValue": "Get-AlienValut_OTX_V2",
             "type": "string"
         },
-        "PlaybookName": {
-            "defaultValue": "Get-AlienValut_OTX_V2",
-            "type": "string"
-        },
         "UserName": {
             "defaultValue": "<username>@<domain>",
             "type": "string"
