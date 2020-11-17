@@ -2,6 +2,10 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
+        "workflows_Get_AlienValut_OTX_V2_name": {
+            "defaultValue": "Get-AlienValut_OTX_V2",
+            "type": "string"
+        }
         "PlaybookName": {
             "defaultValue": "Get-AlienValut_OTX_V2",
             "type": "string"
