@@ -5,7 +5,7 @@
         "workflows_Get_AlienValut_OTX_V2_name": {
             "defaultValue": "Get-AlienValut_OTX_V2",
             "type": "string"
-        }
+        },
         "PlaybookName": {
             "defaultValue": "Get-AlienValut_OTX_V2",
             "type": "string"
