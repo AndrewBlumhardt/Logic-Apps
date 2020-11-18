@@ -8,11 +8,11 @@ Summary:
 Designed to exceed the 1000 workflow limit for large datasets by breaking the results into pages. Set the Lookback to gather historic IOC data. Prevents failed collections when results exceed 1000 records. Tested using 200k records (5 years).
 
 Instructions:
-Get an API key from AlienVault: https://otx.alienvault.com/
-Create an App  Registration in Azure AD:
-Import the Logic App (disabled by default)
-Set the run variables (Tennant ID, Client ID, App Secret, and OTX API Key).
-Enable and run.
+-Get an API key from AlienVault: https://otx.alienvault.com/
+-Create an App  Registration in Azure AD:
+-Import the Logic App (disabled by default)
+-Set the run variables (Tennant ID, Client ID, App Secret, and OTX API Key).
+-Enable and run.
 
 Historic Data Lookback (RUN ONCE):
 Set the lookback days to a desired value (example 365)
