@@ -3,6 +3,8 @@ author: Andrew Blumhardt
 
 This is a Logic App to import threat indicators from AlienVault into Azure Sentinel using the Graph Security API.
 
+Refer to the following link for a more detailed description: https://azurecloudai.blog/2020/11/19/how-to-connect-alienvault-otx-to-azure-sentinel/ 
+
 Summary:
 
 Designed to exceed the 1000 workflow limit for large datasets by breaking the results into pages. Set the Lookback to gather historic IOC data. Prevents failed collections when results exceed 1000 records. Tested using 200k records (5 years).
