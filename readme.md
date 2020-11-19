@@ -27,7 +27,7 @@ Designed to exceed the 1000 workflow limit for large datasets by breaking the re
 
 **App Registration Troubleshooting:**
 1. Make sure to Grant Admin Consent on the API Permission page
-2. Your App Registration can be assigned to roles at the workspace or RG. You may need to assign addtional credentials.
+2. Your App Registration can be assigned to roles at the workspace or RG. You may need to assign additional credentials.
 
 During testing the provider returned some incorrectly formatted records. This was only observed in large collections. The app does not have error checking. Incorrectly formatted records will fail if encountered but the overall app will complete. This will cause the log to show the parent app as failed.
 
