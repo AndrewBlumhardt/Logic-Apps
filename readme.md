@@ -27,6 +27,25 @@ Notes:
 
 During testing the provider returned some incorrectly formatted records. This was only observed in large collections. The app does not have error checking. Incorrectly formatted records will fail if encountered but the overall app will complete. This will cause the log to show the parent app as failed.
 
+Documentation references:
+
+<li>Azure Management groups as containers of subscriptions to monitor
+<ul>
+<li><a href="https://techcommunity.microsoft.com/t5/azure-sentinel/bring-your-threat-intelligence-to-azure-sentinel/ba-p/1167546" target="_blank" rel="noopener">Bring your threat intelligence to Azure Sentinel</a></li>
+</ul>
+</li>
+<li>Azure Active Directory registered application, assigned with RBAC roles
+<ul>
+<li><a href="https://docs.microsoft.com/graph/api/resources/security-api-overview" target="_blank" rel="noopener">Use the Microsoft Graph Security API</a></li>
+</ul>
+</li>
+</li>
+<li>Logic App alternative that Combines Sentinel and Defender TI collection
+<ul>
+<li><a href="https://github.com/richlilly2004/Azure-Sentinel/tree/master/Playbooks/Get-TIfromOTX" target="_blank" rel="noopener">Get-TIfromOTX by Rich Lilly</a></li>
+</ul>
+</li>
+
 <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAndrewBlumhardt%2FLogic-Apps%2Fmain%2Fazuredeploy.json" target="_blank">
     <img src="https://aka.ms/deploytoazurebutton""/>
 </a>
