@@ -31,7 +31,7 @@ Designed to exceed the 1000 workflow limit for large datasets by breaking the re
 
 During testing the provider returned some incorrectly formatted records. This was only observed in large collections. The app does not have error checking. Incorrectly formatted records will fail if encountered but the overall app will complete. This will cause the log to show the parent app as failed.
 
-Documentation references:
+**Documentation references:**
 
 <li>Azure Management groups as containers of subscriptions to monitor
 <ul>
