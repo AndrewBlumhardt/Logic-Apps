@@ -5,27 +5,27 @@ This is a Logic App to import threat indicators from AlienVault into Azure Senti
 
 Refer to the following link for a more detailed description: https://azurecloudai.blog/2020/11/19/how-to-connect-alienvault-otx-to-azure-sentinel/ 
 
-Summary:
+**Summary:**
 
 Designed to exceed the 1000 workflow limit for large datasets by breaking the results into pages. Set the Lookback to gather historic IOC data. Prevents failed collections when results exceed 1000 records. Tested using 200k records (5 years).
 
-Instructions:
+**Instructions:**
 1.	Get an API key from AlienVault: https://otx.alienvault.com/
 2.	Create an App  Registration in Azure AD: http://thewindowsupdate.com/2020/02/11/bring-your-threat-intelligence-to-azure-sentinel/
 3.	Import the Logic App (disabled by default)
 4.	Set the run variables (Tennant ID, Client ID, App Secret, and OTX API Key).
 5.	Enable and run.
 
-Historic Data Lookback (RUN ONCE):
+**Historic Data Lookback (RUN ONCE):**
 1.	Set the lookback days to a desired value (example 365)
 2.	Enable and run the Logic App (estimate 10 minutes processing time for every 10k records)
 3.	Set the Lookback days to the default 1 day
 
-Notes:
+**Notes:**
 1.	API sets a record lookup URL for the profile page on AlienVault in “additionalInformation”
 2.	API uses the “FileCreatedDateTime” column to log the time ingested
 
-App Registration Troubleshooting:
+**App Registration Troubleshooting:**
 1. Make sure to Grant Admin Consent on the API Permission page
 2. Your App Registration can be assigned to roles at the workspace or RG. You may need to assign addtional credentials.
 
