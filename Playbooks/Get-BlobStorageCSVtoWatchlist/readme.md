@@ -1,6 +1,7 @@
 <img src=https://github.com/Azure/Azure-Sentinel/blob/master/Playbooks/logic_app_logo.png alt="LogicApps Logo" width="350" height="200">
 
 ## About Get-BlobStorageCSVtoWatchlist
+Author: Andrew Blumhardt
 
 This Playbook for Azure Sentinel automates importing CSV files from Azure Blob Storage into a Sentinel Watchlist. It checks blob storage and imports CSV file(s) into a Sentinel watchlist on a schedule.
 
@@ -35,8 +36,8 @@ After selecting a playbook, in the Azure portal:
 
 *See <a href=https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/externaldata-operator?pivots=azuremonitor target="_blank">Externaldata Operator Documentation</a> for more information.
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzure-Sentinel%2Fmaster%2FPlaybooks%2FHaveIBeenPwned-Email%2Fazuredeploy.json)
-[![Deploy to Azure Gov](https://aka.ms/deploytoazuregovbutton)](https://portal.azure.us/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FAzure%2FAzure-Sentinel%2Fmaster%2FPlaybooks%2FHaveIBeenPwned-Email%2Fazuredeploy.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.github.com%2FAndrewBlumhardt%2FLogic-Apps%2Fblob%2FPlaybooks%2FPlaybooks%2FGet-BlobStorageCSVtoWatchlist%2Fazuredeploy.json)
+[![Deploy to Azure Gov](https://aka.ms/deploytoazuregovbutton)](https://portal.azure.us/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.github.com%2FAndrewBlumhardt%2FLogic-Apps%2Fblob%2FPlaybooks%2FPlaybooks%2FGet-BlobStorageCSVtoWatchlist%2Fazuredeploy.json)
 
 # Suggestions and feedback
-Let us know if you run into any problems or share your suggestions and feedback by sending email to mailto:andrew.blumhardt@microsoft.com
+Let me know if you run into any problems or share your suggestions and feedback by sending email to andrew.blumhardt@microsoft.com
