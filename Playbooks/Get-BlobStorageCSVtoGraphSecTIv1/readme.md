@@ -32,6 +32,9 @@ NOTE: The TI Platform connector will link Sentinel to the Graph Security API ind
 NOTE: By default, Blob Storage actions can read or write files that are 50 MB or smaller. Chunking is suported for larger files.
 
 ## Considerations and potential enhancements
+* The Grpah Security API has specific input requirements that are provided the template file. Avoid removing colums from the template unless repalacing with static values.
+* There are several required values that can be hard coded or replaced with internal variables (rather than cluttering up your CSV file). See the Confidence Score variable in the playbook as an example.
+* The ThreatType column is required to meet specific API requirements (this is the key-value to the case statement).
 * Use a key value name to avoid importing duplicate records
 * Consider adding activities to archive CSV files after processing
 * Consider testing a blob-update trigger
@@ -42,6 +45,8 @@ NOTE: By default, Blob Storage actions can read or write files that are 50 MB or
 ## References:
 * <a href="https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/externaldata-operator?pivots=azuremonitor" target="_blank">External Data Operator Documentation</a>
 * <a href="https://docs.microsoft.com/en-us/azure/connectors/connectors-create-api-azureblobstorage" target="_blank">Create and manage blobs in Azure Blob Storage by using Azure Logic Apps</a>
+* <a href="https://docs.microsoft.com/en-us/graph/api/resources/tiindicator" target="_blank">Graph Security API - tiindicator Documentation</a>
+* <a href="https://thewindowsupdate.com/2020/02/11/bring-your-threat-intelligence-to-azure-sentinel/" target="_blank">Example of Creating App Registration for the Graph Security API</a>
 
 ## Suggestions and feedback
 Let me know if you run into any problems or share your suggestions and feedback by sending email to andrew.blumhardt@microsoft.com
