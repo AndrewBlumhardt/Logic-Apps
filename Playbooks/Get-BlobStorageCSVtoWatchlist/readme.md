@@ -1,6 +1,6 @@
 <img src=https://github.com/Azure/Azure-Sentinel/blob/master/Playbooks/logic_app_logo.png alt="LogicApps Logo" width="350" height="200">
 
-## Get-BlobStorageCSVtoWatchlist
+# Get-BlobStorageCSVtoWatchlist
 Author: Andrew Blumhardt
 
 This Playbook automates importing CSV files from Azure Blob Storage into a Sentinel Watchlist. It checks blob storage and imports CSV file(s) into a Sentinel watchlist on a schedule.
@@ -28,15 +28,16 @@ After selecting a playbook, in the Azure portal:
 5. Add a JSON-style column list (example provided) based on your CSV file
 
 ## Considerations and potential enhancements
-*Use a key value name to avoid importing duplicate records
-*Consider adding activities to archive CSV files after processing
-*Consider testing a blob-update trigger
+* Use a key value name to avoid importing duplicate records
+* Consider adding activities to archive CSV files after processing
+* Consider testing a blob-update trigger
 
 ## References:
-*https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/externaldata-operator?pivots=azuremonitor
+* <em>[External Data Operator Documentation](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/externaldata-operator?pivots=azuremonitor)</em>
+* <em>[Create and manage blobs in Azure Blob Storage by using Azure Logic Apps](https://docs.microsoft.com/en-us/azure/connectors/connectors-create-api-azureblobstorage)</em>
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FAndrewBlumhardt%2FLogic-Apps%2Fblob%2FPlaybooks%2FPlaybooks%2FGet-BlobStorageCSVtoWatchlist%2Fazuredeploy.json)
 [![Deploy to Azure Gov](https://aka.ms/deploytoazuregovbutton)](https://portal.azure.us/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FAndrewBlumhardt%2FLogic-Apps%2Fblob%2FPlaybooks%2FPlaybooks%2FGet-BlobStorageCSVtoWatchlist%2Fazuredeploy.json)
 
-# Suggestions and feedback
+## Suggestions and feedback
 Let me know if you run into any problems or share your suggestions and feedback by sending email to andrew.blumhardt@microsoft.com
