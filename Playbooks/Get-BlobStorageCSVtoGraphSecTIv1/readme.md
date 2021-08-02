@@ -3,28 +3,33 @@
 # Get-BlobStorageCSVtoGraphSecTIv1
 Author: Andrew Blumhardt
 
-This Playbook automates importing CSV files from Azure Blob Storage into a Sentinel Threat Intelligence using the Graph Security API. It checks blob storage and imports CSV file(s) into a Sentinel watchlist on a schedule.
+This Playbook automates importing CSV files from Azure Blob Storage into a Sentinel Threat Intelligence using the Graph Security API.
 
 One obstacle to importing CSV data using a Logic App is that there is no built-in CSV-to-JSON parser. This playbook demonstrates using the Log Analytics externaldata operator as a workaround. By reading the data using the Log Analytics Data Collector activity, you can avoid the need to use a CSV-to-JSON parser.
 
+V1 is a simple option that may be easier for reuse and V2 has more complex options.
+
 ## Playbook Options:
-1. The logic app is configured to read one or more CSV files from a target storage container
+1. The logic app is configured to read one CSV files from a target storage container
 2. Option to exclude the first title column from the CSV file(s)
-3. Specify an optional key column to limit ingesting duplicate records (only imports record with unique key values)
 
 ## Prerequisites:
 1. Prepare a CSV sample file (template provided if needed)
-2. Upload a sample CSV file in the Sentinel portal to seed the Watchlist
-3. Create an Azure Storage account and container
-4. Upload a sample import CSV file to the storage container
+2. Create an Azure Storage account and container
+3. Upload a sample import CSV file to the storage container
+4. Activate the Threat Intelligence Platforms connector in Sentinel
+5. Setup an App registration (assigning ThreatIndicators.ReadWrite.OwnedBy)
+
+NOTE: The TI Platform connector will link Sentinel to the Graph Security API indicator list. The IOCs are joined to the ThreatIntelligenceIndicator table. Ingesting new indicators using the Graph Security API may involve a short delay before being visible in Sentinel.
 
 ## Instructions for deployment and setup
 1. Set the Sentinel resource group and workspace name
 2. Deploy the template
 3. Authorize the API-based activities (key-based read access recommended for the blob container)
-4. Set the storage account name and container
-5. Set the Watchlist name and optional key column name
-6. Add a JSON-style column list (example provided) based on your CSV file
+4. Set the Tenant, App ID, and key for the API connection
+5. Add a JSON-style column list (example provided) based on your CSV file
+
+NOTE: By default, Blob Storage actions can read or write files that are 50 MB or smaller. Chunking is suported for larger files.
 
 ## Considerations and potential enhancements
 * Use a key value name to avoid importing duplicate records
