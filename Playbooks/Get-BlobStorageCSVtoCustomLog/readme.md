@@ -26,7 +26,7 @@ One obstacle to importing CSV data using a Logic App is that there is no built-i
 6. Add a JSON-style column list (example provided) based on your CSV file
 
 ## Considerations and potential enhancements
-* Log analytics data is time-based (data quicky expires). Rather than inporting the CSV data one time, import a full copy periodically. Consider using arg_max to filter out duplicate results, displaying the most recent records.
+* Log analytics data is time-based (data quicky expires). Rather than importing the CSV data one time, import a full copy periodically. Consider using arg_max to filter out duplicate results, displaying the most recent records.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FAndrewBlumhardt%2FLogic-Apps%2Fblob%2FPlaybooks%2FPlaybooks%2FGet-BlobStorageCSVtoWatchlist%2Fazuredeploy.json)
 [![Deploy to Azure Gov](https://aka.ms/deploytoazuregovbutton)](https://portal.azure.us/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FAndrewBlumhardt%2FLogic-Apps%2Fblob%2FPlaybooks%2FPlaybooks%2FGet-BlobStorageCSVtoWatchlist%2Fazuredeploy.json)
