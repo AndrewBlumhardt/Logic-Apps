@@ -5,6 +5,8 @@ Author: Andrew Blumhardt
 
 This Playbook closes Sentinel Incidents older than a specified number of days. This may be useful in environments with limited support including labs ane evaluation instances. This may be usefule in a production environment to auto-close incidents before the age out of the primary view.
 
+This Logic App demonstrates an alternative trigger method, compared to the Sentinel incident and alert triggers. The playbook uses a scheduled trigger to query the SecurityIncidents table direcly. The logic app also demonstrates parsing the Incident ARM ID required by most Sentinel activities using the Incudent URL.
+
 ## Playbook Options:
 1. The playbook includes an optional email report
 2. The reporting lookback period can be eaily extended if needed
