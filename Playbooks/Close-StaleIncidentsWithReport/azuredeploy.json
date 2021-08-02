@@ -1,0 +1,394 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "PlaybookName": {
+            "defaultValue": "Close-StaleIncidentsWithReport",
+            "type": "string"
+        },
+        "UserName": {
+            "defaultValue": "<username>@<domain>",
+            "type": "string"
+        },
+        "Sentinel Resource Group": {
+            "defaultValue": "<PlaybookName>",
+            "type": "string"
+        },
+        "Sentinel Workspace": {
+            "defaultValue": "<username>@<domain>",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "AzureMonitorConnectionName": "[concat('azuremonitorlogs-', parameters('PlaybookName'))]",
+        "AzureSentinelConnectionName": "[concat('azuresentinel-', parameters('PlaybookName'))]",
+        "AzureOffice365ConnectionName": "[concat('office365-', parameters('PlaybookName'))]"
+    },
+    "resources": [
+                {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureMonitorConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+                }
+            }
+        },
+                {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureSentinelConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+                }
+            }
+        },
+                {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureOffice365ConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('PlaybookName')]",
+            "location": "[resourceGroup().location]",
+                "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('AzureMonitorConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('AzureSentinelConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('AzureOffice365ConnectionName'))]"
+            ],
+            "properties": {
+                "state": "Disabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Recurrence": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 1,
+                                "schedule": {
+                                    "hours": [
+                                        "6"
+                                    ],
+                                    "minutes": [
+                                        0
+                                    ]
+                                }
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "Condition": {
+                            "actions": {
+                                "Query_closed_alerts": {
+                                    "runAfter": {
+                                        "Query_open_alerts": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": "SecurityIncident\n| summarize arg_max(TimeGenerated, *) by IncidentName\n| where TimeGenerated >= ago(@{variables('LookBackHours')}h) \n| where Status == \"Closed\" \n| extend SevSort = case(Severity == \"High\", 0, Severity == \"Medium\", 1, Severity == \"Low\", 2, 3) //Adding numeric severity for sorting\n| extend SevIcon = case(Severity == \"High\", \"🔴\", Severity == \"Medium\", \"🟠\", Severity == \"Low\", \"🟡\", \"⚪\")\n| sort by SevSort asc, Title asc\n| project SEV=SevIcon, Alerts=AdditionalData.alertsCount, Title, Owner=Owner.assignedTo, Determination=Classification, Created=CreatedTime, LastUpdate=LastModifiedTime, IncidentUrl\n| top 30 by Created",
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/visualizeQuery",
+                                        "queries": {
+                                            "resourcegroups": "[parameters('Sentinel Resource Group')]",
+                                            "resourcename": "[parameters('Sentinel Workspace')]",
+                                            "resourcetype": "SentinelDemo",
+                                            "subscriptions": "[subscription().subscriptionId]",
+                                            "timerange": "Set in query",
+                                            "visType": "Html Table"
+                                        }
+                                    }
+                                },
+                                "Query_open_alerts": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": "SecurityIncident\n| summarize arg_max(TimeGenerated, *) by IncidentName\n| where TimeGenerated >= ago(@{variables('LookBackHours')}h) \n| where Status != \"Closed\" \n| extend SevSort = case(Severity == \"High\", 0, Severity == \"Medium\", 1, Severity == \"Low\", 2, 3) //Adding numeric severity for sorting\n| extend SevIcon = case(Severity == \"High\", \"🔴\", Severity == \"Medium\", \"🟠\", Severity == \"Low\", \"🟡\", \"⚪\")\n| sort by SevSort asc, Title asc\n| project SEV=SevIcon, Status, Alerts=AdditionalData.alertsCount, Title, Owner=Owner.assignedTo, Created=CreatedTime, LastUpdate=LastModifiedTime, IncidentUrl\n| top 30 by Created",
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/visualizeQuery",
+                                        "queries": {
+                                            "resourcegroups": "[parameters('Sentinel Resource Group')]",
+                                            "resourcename": "[parameters('Sentinel Workspace')]",
+                                            "resourcetype": "SentinelDemo",
+                                            "subscriptions": "[subscription().subscriptionId]",
+                                            "timerange": "Set in query",
+                                            "visType": "Html Table"
+                                        }
+                                    }
+                                },
+                                "Send_incident_report_email": {
+                                    "runAfter": {
+                                        "Query_closed_alerts": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "Body": "<p><strong>EXPIRED INCIDENTS CLOSED = </strong><strong>@{variables('RecordsClosed')}</strong><strong><br>\n<br>\nOPEN INCIDENTS - PAST </strong><strong>@{variables('LookBackHours')}</strong><strong>HRS</strong><br>\n@{base64ToString(body('Query_open_alerts')?['attachmentContent'])}<br>\n<br>\n<strong>CLOSED INCIDENTS - PAST </strong><strong>@{variables('LookBackHours')}</strong><strong>HRS</strong><br>\n@{base64ToString(body('Query_closed_alerts')?['attachmentContent'])}<br>\n<span style=\"font-size: 10px\">Note: Results are limited to the top 40<br>\n<br>\n</span><span style=\"font-size: 10px; color: rgb(204,204,204)\">Generated by Logic App: </span><span style=\"font-size: 10px; color: rgb(204,204,204)\">@{variables('TrackBack')}</span><span style=\"font-size: 10px; color: rgb(204,204,204)\"></span></p>",
+                                            "Subject": "Sentinel Incident Report",
+                                            "To": "@variables('EmailContacts')"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['office365']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/v2/Mail"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "For_each_incident": [
+                                    "Succeeded",
+                                    "Failed",
+                                    "Skipped",
+                                    "TimedOut"
+                                ]
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@variables('EnableEmail')",
+                                            true
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        },
+                        "Enable_email_reports": {
+                            "runAfter": {
+                                "Set_the_cutoff_days_for_inactive_incidents_(close_if_older_than)": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "EnableEmail",
+                                        "type": "boolean",
+                                        "value": true
+                                    }
+                                ]
+                            }
+                        },
+                        "For_each_incident": {
+                            "foreach": "@body('Run_query_and_list_results')?['value']",
+                            "actions": {
+                                "Count_the_number_of_closed_incidents": {
+                                    "runAfter": {
+                                        "Update_incident": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "IncrementVariable",
+                                    "inputs": {
+                                        "name": "RecordsClosed",
+                                        "value": 1
+                                    }
+                                },
+                                "Update_incident": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "classification": {
+                                                "ClassificationAndReason": "Undetermined",
+                                                "ClassificationReasonText": "Closed automatically due to inactivity."
+                                            },
+                                            "incidentArmId": "@items('For_each_incident')?['IncidentARM_ID']",
+                                            "status": "Closed"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                            }
+                                        },
+                                        "method": "put",
+                                        "path": "/Incidents"
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Total_Records_Auto_Closed": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Foreach"
+                        },
+                        "Playbook_watermark": {
+                            "runAfter": {
+                                "Run_query_and_list_results": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "TrackBack",
+                                        "type": "string",
+                                        "value": "[parameters('PlaybookName')]"
+                                    }
+                                ]
+                            }
+                        },
+                        "Reporting_Look_Back_Hours-_Default_is_24_Hours": {
+                            "runAfter": {
+                                "Enable_email_reports": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "LookBackHours",
+                                        "type": "integer",
+                                        "value": 24
+                                    }
+                                ]
+                            }
+                        },
+                        "Run_query_and_list_results": {
+                            "runAfter": {
+                                "Set_INTERNAL_email(s)_for_the_incident_reports_(separate_by_semicolon)": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": "SecurityIncident \n| where TimeGenerated >= ago(90d) \n| summarize arg_max(TimeGenerated, *) by IncidentName\n| where Status != \"Closed\" \n| where CreatedTime < ago(@{variables('CutoffDays')}d) \n| extend ID_Long = split(IncidentUrl, \"_Insights/Incident\").[1]\n| extend ID_Len = strlen(ID_Long)\n| project IncidentARM_ID = substring(ID_Long, 0, ID_Len) //Extracting the ARM ID\n| top 100 by IncidentARM_ID //Hard limit to avoid overload",
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/queryData",
+                                "queries": {
+                                    "resourcegroups": "[parameters('Sentinel Resource Group')]",
+                                    "resourcename": "[parameters('Sentinel Workspace')]",
+                                    "resourcetype": "SentinelDemo",
+                                    "subscriptions": "[subscription().subscriptionId]",
+                                    "timerange": "Set in query",
+                                    "visType": "Html Table"
+                                }
+                            }
+                        },
+                        "Set_INTERNAL_email(s)_for_the_incident_reports_(separate_by_semicolon)": {
+                            "runAfter": {
+                                "Reporting_Look_Back_Hours-_Default_is_24_Hours": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "EmailContacts",
+                                        "type": "string",
+                                        "value": ""
+                                    }
+                                ]
+                            }
+                        },
+                        "Set_the_cutoff_days_for_inactive_incidents_(close_if_older_than)": {
+                            "runAfter": {},
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "CutoffDays",
+                                        "type": "integer",
+                                        "value": 2
+                                    }
+                                ]
+                            }
+                        },
+                        "Total_Records_Auto_Closed": {
+                            "runAfter": {
+                                "Playbook_watermark": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "RecordsClosed",
+                                        "type": "integer",
+                                        "value": 0
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azuremonitorlogs": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorConnectionName'))]",
+                                "connectionName": "[variables('AzureMonitorConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+                            },
+                            "azuresentinel": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureSentinelConnectionName'))]",
+                                "connectionName": "[variables('AzureSentinelConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuresentinel')]"
+                            },
+                            "office365": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureOffice365ConnectionName'))]",
+                                "connectionName": "[variables('AzureOffice365ConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/office365')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}
