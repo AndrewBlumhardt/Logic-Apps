@@ -7,7 +7,7 @@ This repository contains Logic Apps that I am currently supporting or testing. I
 
 # Inventory:
 
-* Close-StaleIncidentsWithReport - Closes incidents over than the threshold days with an optional email report.
+* Close-StaleIncidentsWithReport - Closes incidents older than the threshold days with an optional email report.
 * Get-AlienValut_OTX_V2 - API-based logic app for intesgrating Sentinel and AlienVault Threat Intelligence.
 * Get-BlobStorageCSVtoCustomLog - Import CSV files into Log Analytics using a CSV-JSON parser workaround.
 * Get-BlobStorageCSVtoGraphSecTIv1 - Import CSV files into Sentinel Threat Intelligence (no frills).
