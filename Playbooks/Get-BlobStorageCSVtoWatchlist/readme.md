@@ -1,4 +1,5 @@
 <img src=https://github.com/Azure/Azure-Sentinel/blob/master/Playbooks/logic_app_logo.png alt="LogicApps Logo" width="350" height="200">
+
 # Get-BlobStorageCSVtoWatchlist
 Author: Andrew Blumhardt
 
@@ -18,13 +19,12 @@ One obstacle to importing CSV data using a Logic App is that there is no built-i
 4. Upload a sample import CSV file to the storage container
 
 ## Instructions for deployment and setup
-After selecting a playbook, in the Azure portal:
 1. Set the Sentinel resource group and workspace name
 2. Deploy the template
 3. Authorize the API-based activities (key-based read access recommended for the blob container)
-3. Set the storage account name and container
-4. Set the Watchlist name and optional key column name
-5. Add a JSON-style column list (example provided) based on your CSV file
+4. Set the storage account name and container
+5. Set the Watchlist name and optional key column name
+6. Add a JSON-style column list (example provided) based on your CSV file
 
 ## Considerations and potential enhancements
 * Use a key value name to avoid importing duplicate records
