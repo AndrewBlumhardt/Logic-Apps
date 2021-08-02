@@ -5,7 +5,9 @@ author: Andrew Blumhardt
 
 This repository contains Logic Apps that I am currently supporting or testing. I will eventually migrate these to the official Azure Sentinel repository. Intended for testing, peer review, and early access.
 
-# Inventory:
+Download links will be updated prior to formal publishing. <b>To deploy these templates, download the template manually and paste the contents in the 'Build your own template in the editor' in the Azure portal. </b>
+
+##Inventory:
 
 * Close-StaleIncidentsWithReport - Closes incidents older than the threshold days with an optional email report.
 * Get-AlienValut_OTX_V2 - API-based logic app for intesgrating Sentinel and AlienVault Threat Intelligence.
