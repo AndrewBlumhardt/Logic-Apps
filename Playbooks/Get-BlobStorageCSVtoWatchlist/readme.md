@@ -8,7 +8,7 @@ This Playbook automates importing CSV files from Azure Blob Storage into a Senti
 One obstacle to importing CSV data using a Logic App is that there is no built-in CSV-to-JSON parser. This playbook demonstrates using the Log Analytics externaldata operator as a workaround. By reading the data using the Log Analytics Data Collector activity, you can avoid the need to use a CSV-to-JSON parser.
 
 ## Playbook Options:
-1. The logic app is configured to read one or more CSV files form a target storage container
+1. The logic app is configured to read one or more CSV files from a target storage container
 2. Option to exclude the first title column from the CSV file(s)
 3. Specify an optional key column to limit ingesting duplicate records (only imports record with unique key values)
 
