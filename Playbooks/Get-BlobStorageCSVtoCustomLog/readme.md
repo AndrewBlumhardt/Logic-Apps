@@ -25,6 +25,9 @@ One obstacle to importing CSV data using a Logic App is that there is no built-i
 5. Set the Watchlist name and optional key column name
 6. Add a JSON-style column list (example provided) based on your CSV file
 
+NOTE: If you are writing to a new custom table for the first time, results can be delayed for 10-15 minutes.
+NOTE: By default, Blob Storage actions can read or write files that are 50 MB or smaller. Chunking is suported for larger files.
+
 ## Considerations and potential enhancements
 * Log analytics data is time-based (data quicky expires). Rather than importing the CSV data one time, import a full copy periodically. Consider using arg_max to filter out duplicate results, displaying the most recent records.
 
