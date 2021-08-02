@@ -1,0 +1,381 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "PlaybookName": {
+            "defaultValue": "Get-BlobStorageCSVtoWatchlist",
+            "type": "string"
+        },
+        "UserName": {
+            "defaultValue": "<username>@<domain>",
+            "type": "string"
+        },
+        "Sentinel Resource Group": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "Sentinel Workspace": {
+            "defaultValue": "",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "AzureBlobConnectionName": "[concat('azureblob-', parameters('PlaybookName'))]",
+        "AzureLAConnectionName": "[concat('azureloganalyticsdatacollector-', parameters('PlaybookName'))]",
+        "AzureMonitorConnectionName": "[concat('azuremonitorlogs-', parameters('PlaybookName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureBlobConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureblob')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureLAConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureloganalyticsdatacollector')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureMonitorConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('PlaybookName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', variables('AzureBlobConnectionName'))]",
+                "[resourceId('Microsoft.Web/connections', variables('AzureLAConnectionName'))]",
+                "[resourceId('Microsoft.Web/connections', variables('AzureMonitorConnectionName'))]"
+            ],
+            "properties": {
+                "state": "Disabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Recurrence": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 1
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "For_each_file": {
+                            "foreach": "@body('Gather_file_information')?['value']",
+                            "actions": {
+                                "Create_SAS_URI_for_each_file": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "Permissions": "Read"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/v2/datasets/@{encodeURIComponent(variables('accountName'))}/CreateSharedLinkByPath",
+                                        "queries": {
+                                            "path": "@items('For_each_file')?['Path']"
+                                        }
+                                    }
+                                },
+                                "Get_CSV": {
+                                    "actions": {
+                                        "QueryOption1": {
+                                            "runAfter": {},
+                                            "type": "ApiConnection",
+                                            "inputs": {
+                                                "body": "externaldata (@{variables('columnNames')})[@\"@{body('Create_SAS_URI_for_each_file')?['WebUrl']}\"] with (ignoreFirstRecord=@{variables('hideTitleRow')})",
+                                                "host": {
+                                                    "connection": {
+                                                        "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                                    }
+                                                },
+                                                "method": "post",
+                                                "path": "/queryData",
+                                                "queries": {
+                                                    "resourcegroups": "[parameters('Sentinel Resource Group')]",
+                                                    "resourcename": "[parameters('Sentinel Workspace')]",
+                                                    "resourcetype": "Log Analytics Workspace",
+                                                    "subscriptions": "[subscription().subscriptionId]",
+                                                    "timerange": "Last 7 days"
+                                                }
+                                            }
+                                        },
+                                        "Send_records_to_Log_Analytics": {
+                                            "foreach": "@body('QueryOption1')?['value']",
+                                            "actions": {
+                                                "Watchlists_-_Add_a_new_watchlist_item": {
+                                                    "runAfter": {},
+                                                    "type": "ApiConnection",
+                                                    "inputs": {
+                                                        "body": "@items('Send_records_to_Log_Analytics')",
+                                                        "host": {
+                                                            "connection": {
+                                                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                                            }
+                                                        },
+                                                        "method": "put",
+                                                        "path": "/Watchlists/subscriptions/@{encodeURIComponent('9b776454-bbf1-497e-93dc-10f62c020dd2')}/resourceGroups/@{encodeURIComponent('sentinelairs')}/workspaces/@{encodeURIComponent('sentinelairs')}/watchlists/@{encodeURIComponent(variables('tableName'))}/watchlistItem"
+                                                    }
+                                                }
+                                            },
+                                            "runAfter": {
+                                                "QueryOption1": [
+                                                    "Succeeded"
+                                                ]
+                                            },
+                                            "type": "Foreach",
+                                            "runtimeConfiguration": {
+                                                "concurrency": {
+                                                    "repetitions": 1
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Create_SAS_URI_for_each_file": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "else": {
+                                        "actions": {
+                                            "QuertOption2": {
+                                                "runAfter": {},
+                                                "type": "ApiConnection",
+                                                "inputs": {
+                                                    "body": "let LAcopy = _GetWatchlist('@{variables('tableName')}')\n| summarize arg_max(LastUpdatedTimeUTC, *) by @{variables('avoidDuplication')};\nexternaldata (@{variables('columnNames')})[@\"@{body('Create_SAS_URI_for_each_file')?['WebUrl']}\"] with (ignoreFirstRecord=@{variables('hideTitleRow')})\n| join kind=leftanti LAcopy on @{variables('avoidDuplication')}",
+                                                    "host": {
+                                                        "connection": {
+                                                            "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                                        }
+                                                    },
+                                                    "method": "post",
+                                                    "path": "/queryData",
+                                                    "queries": {
+                                                        "resourcegroups": "[parameters('Sentinel Resource Group')]",
+                                                        "resourcename": "[parameters('Sentinel Workspace')]",
+                                                        "resourcetype": "Log Analytics Workspace",
+                                                        "subscriptions": "[subscription().subscriptionId]",
+                                                        "timerange": "Last 7 days"
+                                                    }
+                                                }
+                                            },
+                                            "Send_unique_records_to_Log_Analytics": {
+                                                "foreach": "@body('QuertOption2')?['value']",
+                                                "actions": {
+                                                    "Watchlists_-_Add_a_new_watchlist_item_2": {
+                                                        "runAfter": {},
+                                                        "type": "ApiConnection",
+                                                        "inputs": {
+                                                            "body": "@items('Send_unique_records_to_Log_Analytics')",
+                                                            "host": {
+                                                                "connection": {
+                                                                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                                                }
+                                                            },
+                                                            "method": "put",
+                                                            "path": "/Watchlists/subscriptions/@{encodeURIComponent('9b776454-bbf1-497e-93dc-10f62c020dd2')}/resourceGroups/@{encodeURIComponent('sentinelairs')}/workspaces/@{encodeURIComponent('sentinelairs')}/watchlists/@{encodeURIComponent(variables('tableName'))}/watchlistItem"
+                                                        }
+                                                    }
+                                                },
+                                                "runAfter": {
+                                                    "QuertOption2": [
+                                                        "Succeeded"
+                                                    ]
+                                                },
+                                                "type": "Foreach"
+                                            }
+                                        }
+                                    },
+                                    "expression": {
+                                        "and": [
+                                            {
+                                                "equals": [
+                                                    "@variables('avoidDuplication')",
+                                                    ""
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "type": "If"
+                                }
+                            },
+                            "runAfter": {
+                                "Limit_to_new_rows_by_providing_a_key_column_name_(leave_blank_to_disable)": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Foreach"
+                        },
+                        "Gather_file_information": {
+                            "runAfter": {
+                                "Set_storage_account_name": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "metadata": {
+                                "JTJmcHJvY2Vzc2luZzI=": "ADD YOUR OWN VALUE"
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(variables('accountName')))}/foldersV2/@{encodeURIComponent(encodeURIComponent('JTJmcHJvY2Vzc2luZzI='))}",
+                                "queries": {
+                                    "nextPageMarker": "",
+                                    "useFlatListing": false
+                                }
+                            }
+                        },
+                        "Ignore_the_first_record": {
+                            "runAfter": {
+                                "Set_JSON-style_column_list_-_must_match_Watchlist_columns": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "hideTitleRow",
+                                        "type": "string",
+                                        "value": "true"
+                                    }
+                                ]
+                            }
+                        },
+                        "Limit_to_new_rows_by_providing_a_key_column_name_(leave_blank_to_disable)": {
+                            "runAfter": {
+                                "Ignore_the_first_record": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "avoidDuplication",
+                                        "type": "string",
+                                        "value": ""
+                                    }
+                                ]
+                            }
+                        },
+                        "Set_JSON-style_column_list_-_must_match_Watchlist_columns": {
+                            "runAfter": {
+                                "Set_the_Watchlist_alias_name_-_must_upload_CSV_sample_to_Sentinel_in_advance": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "columnNames",
+                                        "type": "string",
+                                        "value": "Name:string, Version:string, Type:string, Category:string, Severity:string, Role:string, Level:string, Role2:string, Level2:string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Set_storage_account_name": {
+                            "runAfter": {},
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "accountName",
+                                        "type": "string",
+                                        "value": "ADD YOUR OWN VALUE"
+                                    }
+                                ]
+                            }
+                        },
+                        "Set_the_Watchlist_alias_name_-_must_upload_CSV_sample_to_Sentinel_in_advance": {
+                            "runAfter": {
+                                "Gather_file_information": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "tableName",
+                                        "type": "string",
+                                        "value": "ADD YOUR OWN VALUE"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureblob": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureBlobConnectionName'))]",
+                                "connectionName": "[variables('AzureBlobConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureblob')]"
+                            },
+                            "azureloganalyticsdatacollector": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureLAConnectionName'))]",
+                                "connectionName": "[variables('AzureLAConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureloganalyticsdatacollector')]"
+                            },
+                            "azuremonitorlogs": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorConnectionName'))]",
+                                "connectionName": "[variables('AzureMonitorConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

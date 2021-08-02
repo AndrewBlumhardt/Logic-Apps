@@ -1,0 +1,740 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "PlaybookName": {
+            "defaultValue": "Get-BlobStorageCSVtoGraphSecTIv2",
+            "type": "string"
+        },
+        "UserName": {
+            "defaultValue": "<username>@<domain>",
+            "type": "string"
+        },
+        "Sentinel Resource Group": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "Sentinel Workspace": {
+            "defaultValue": "",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "AzureBlobConnectionName": "[concat('azureblob-', parameters('PlaybookName'))]",
+        "AzureLAConnectionName": "[concat('azureloganalyticsdatacollector-', parameters('PlaybookName'))]",
+        "AzureMonitorConnectionName": "[concat('azuremonitorlogs-', parameters('PlaybookName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureBlobConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureblob')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureLAConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureloganalyticsdatacollector')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[variables('AzureMonitorConnectionName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "displayName": "[parameters('UserName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('PlaybookName')]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', variables('AzureBlobConnectionName'))]",
+                "[resourceId('Microsoft.Web/connections', variables('AzureLAConnectionName'))]",
+                "[resourceId('Microsoft.Web/connections', variables('AzureMonitorConnectionName'))]"
+            ],
+            "properties": {
+                "state": "Disabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "Recurrence": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 1
+                            },
+                            "type": "Recurrence"
+                        }
+                    },
+                    "actions": {
+                        "App_Registration_AppSecret": {
+                            "runAfter": {
+                                "App_Registration_ClientID": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "AppSecret",
+                                        "type": "string",
+                                        "value": "ADD YOUR OWN VALUE"
+                                    }
+                                ]
+                            }
+                        },
+                        "App_Registration_ClientID": {
+                            "runAfter": {
+                                "TenantID": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "ClientID",
+                                        "type": "string",
+                                        "value": "ADD YOUR OWN VALUE"
+                                    }
+                                ]
+                            }
+                        },
+                        "Default_Provider_Confidence_Score_(0-100)": {
+                            "runAfter": {
+                                "Default_Record_Expiration_-_Record_Retention_Days": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "confidence",
+                                        "type": "integer",
+                                        "value": 50
+                                    }
+                                ]
+                            }
+                        },
+                        "Default_Record_Expiration_-_Record_Retention_Days": {
+                            "runAfter": {
+                                "App_Registration_AppSecret": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "KeepForDays",
+                                        "type": "integer",
+                                        "value": 365
+                                    }
+                                ]
+                            }
+                        },
+                        "For_each_FILE": {
+                            "foreach": "@body('Gather_file_information_-_Set_the_folder_name_here')?['value']",
+                            "actions": {
+                                "Create_SAS_URI_for_each_file": {
+                                    "runAfter": {},
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": {
+                                            "Permissions": "Read"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/v2/datasets/@{encodeURIComponent(variables('accountName'))}/CreateSharedLinkByPath",
+                                        "queries": {
+                                            "path": "@items('For_each_FILE')?['Path']"
+                                        }
+                                    }
+                                },
+                                "For_each_IOC": {
+                                    "foreach": "@body('Parse_JSON')",
+                                    "actions": {
+                                        "Switch": {
+                                            "runAfter": {},
+                                            "cases": {
+                                                "Process_Domain_records": {
+                                                    "case": "Domain",
+                                                    "actions": {
+                                                        "HTTP6": {
+                                                            "runAfter": {},
+                                                            "type": "Http",
+                                                            "inputs": {
+                                                                "authentication": {
+                                                                    "audience": "https://graph.microsoft.com",
+                                                                    "clientId": "@variables('ClientID')",
+                                                                    "secret": "@variables('AppSecret')",
+                                                                    "tenant": "@variables('Tenant')",
+                                                                    "type": "ActiveDirectoryOAuth"
+                                                                },
+                                                                "body": {
+                                                                    "FileCreatedDateTime": " @{utcNow()}",
+                                                                    "action": "@{items('For_each_IOC')['action']}",
+                                                                    "activityGroupNames": "@{items('For_each_IOC')['activityGroupNames']}",
+                                                                    "additionalInformation": "@{items('For_each_IOC')['additionalInformation']}",
+                                                                    "confidence": "@variables('confidence')",
+                                                                    "description": "@{items('For_each_IOC')['description']}",
+                                                                    "domainName": "@{items('For_each_IOC')['domainName']}",
+                                                                    "expirationDateTime": "@{addDays(utcNow(), variables('KeepForDays'))}",
+                                                                    "externalId": "@{items('For_each_IOC')['externalId']}",
+                                                                    "indicatorProvider": "@{items('For_each_IOC')['indicatorProvider']}",
+                                                                    "killChain": "@{items('For_each_IOC')['killChain']}",
+                                                                    "malwareFamilyNames": "@{items('For_each_IOC')['malwareFamilyNames']}",
+                                                                    "severity": "@{items('For_each_IOC')['severity']}",
+                                                                    "tags": "@{items('For_each_IOC')['tags']}",
+                                                                    "targetProduct": "@{items('For_each_IOC')['targetProduct']}",
+                                                                    "threatType": "@{items('For_each_IOC')['threatType']}",
+                                                                    "tlpLevel": "@{items('For_each_IOC')['tlpLevel']}"
+                                                                },
+                                                                "headers": {
+                                                                    "content-type": "application/json"
+                                                                },
+                                                                "method": "POST",
+                                                                "uri": "https://graph.microsoft.com/beta/security/tiIndicators"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "Process_Email_Address_records": {
+                                                    "case": "Email",
+                                                    "actions": {
+                                                        "HTTP7": {
+                                                            "runAfter": {},
+                                                            "type": "Http",
+                                                            "inputs": {
+                                                                "authentication": {
+                                                                    "audience": "https://graph.microsoft.com",
+                                                                    "clientId": "@variables('ClientID')",
+                                                                    "secret": "@variables('AppSecret')",
+                                                                    "tenant": "@variables('Tenant')",
+                                                                    "type": "ActiveDirectoryOAuth"
+                                                                },
+                                                                "body": {
+                                                                    "FileCreatedDateTime": " @{utcNow()}",
+                                                                    "action": "@{items('For_each_IOC')['action']}",
+                                                                    "activityGroupNames": "@{items('For_each_IOC')['activityGroupNames']}",
+                                                                    "additionalInformation": "@{items('For_each_IOC')['additionalInformation']}",
+                                                                    "confidence": "@variables('confidence')",
+                                                                    "description": "@{items('For_each_IOC')['description']}",
+                                                                    "emailSenderAddress": "@{items('For_each_IOC')['emailSenderAddress']}",
+                                                                    "expirationDateTime": "@{addDays(utcNow(), variables('KeepForDays'))}",
+                                                                    "externalId": "@{items('For_each_IOC')['externalId']}",
+                                                                    "indicatorProvider": "@{items('For_each_IOC')['indicatorProvider']}",
+                                                                    "killChain": "@{items('For_each_IOC')['killChain']}",
+                                                                    "malwareFamilyNames": "@{items('For_each_IOC')['malwareFamilyNames']}",
+                                                                    "severity": "@{items('For_each_IOC')['severity']}",
+                                                                    "tags": "@{items('For_each_IOC')['tags']}",
+                                                                    "targetProduct": "@{items('For_each_IOC')['targetProduct']}",
+                                                                    "threatType": "@{items('For_each_IOC')['threatType']}",
+                                                                    "tlpLevel": "@{items('For_each_IOC')['tlpLevel']}"
+                                                                },
+                                                                "headers": {
+                                                                    "content-type": "application/json"
+                                                                },
+                                                                "method": "POST",
+                                                                "uri": "https://graph.microsoft.com/beta/security/tiIndicators"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "Process_IPv4_records": {
+                                                    "case": "IPv4",
+                                                    "actions": {
+                                                        "HTTP1": {
+                                                            "runAfter": {},
+                                                            "type": "Http",
+                                                            "inputs": {
+                                                                "authentication": {
+                                                                    "audience": "https://graph.microsoft.com",
+                                                                    "clientId": "@variables('ClientID')",
+                                                                    "secret": "@variables('AppSecret')",
+                                                                    "tenant": "@variables('Tenant')",
+                                                                    "type": "ActiveDirectoryOAuth"
+                                                                },
+                                                                "body": {
+                                                                    "FileCreatedDateTime": " @{utcNow()}",
+                                                                    "action": "@{items('For_each_IOC')['action']}",
+                                                                    "activityGroupNames": "@{items('For_each_IOC')['activityGroupNames']}",
+                                                                    "additionalInformation": "@{items('For_each_IOC')['additionalInformation']}",
+                                                                    "confidence": "@variables('confidence')",
+                                                                    "description": "@{items('For_each_IOC')['description']}",
+                                                                    "expirationDateTime": "@{addDays(utcNow(), variables('KeepForDays'))}",
+                                                                    "externalId": "@{items('For_each_IOC')['externalId']}",
+                                                                    "indicatorProvider": "@{items('For_each_IOC')['indicatorProvider']}",
+                                                                    "killChain": "@{items('For_each_IOC')['killChain']}",
+                                                                    "malwareFamilyNames": "@{items('For_each_IOC')['malwareFamilyNames']}",
+                                                                    "networkIPv4": "@{items('For_each_IOC')['networkIPv4']}",
+                                                                    "severity": "@{items('For_each_IOC')['severity']}",
+                                                                    "tags": "@{items('For_each_IOC')['tags']}",
+                                                                    "targetProduct": "@{items('For_each_IOC')['targetProduct']}",
+                                                                    "threatType": "@{items('For_each_IOC')['threatType']}",
+                                                                    "tlpLevel": "@{items('For_each_IOC')['tlpLevel']}"
+                                                                },
+                                                                "headers": {
+                                                                    "content-type": "application/json"
+                                                                },
+                                                                "method": "POST",
+                                                                "uri": "https://graph.microsoft.com/beta/security/tiIndicators"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "Process_URL_and_URI_records": {
+                                                    "case": "URL",
+                                                    "actions": {
+                                                        "HTTP2": {
+                                                            "runAfter": {},
+                                                            "type": "Http",
+                                                            "inputs": {
+                                                                "authentication": {
+                                                                    "audience": "https://graph.microsoft.com",
+                                                                    "clientId": "@variables('ClientID')",
+                                                                    "secret": "@variables('AppSecret')",
+                                                                    "tenant": "@variables('Tenant')",
+                                                                    "type": "ActiveDirectoryOAuth"
+                                                                },
+                                                                "body": {
+                                                                    "FileCreatedDateTime": " @{utcNow()}",
+                                                                    "action": "@{items('For_each_IOC')['action']}",
+                                                                    "activityGroupNames": "@{items('For_each_IOC')['activityGroupNames']}",
+                                                                    "additionalInformation": "@{items('For_each_IOC')['additionalInformation']}",
+                                                                    "confidence": "@variables('confidence')",
+                                                                    "description": "@{items('For_each_IOC')['description']}",
+                                                                    "expirationDateTime": "@{addDays(utcNow(), variables('KeepForDays'))}",
+                                                                    "externalId": "@{items('For_each_IOC')['externalId']}",
+                                                                    "indicatorProvider": "@{items('For_each_IOC')['indicatorProvider']}",
+                                                                    "killChain": "@{items('For_each_IOC')['killChain']}",
+                                                                    "malwareFamilyNames": "@{items('For_each_IOC')['malwareFamilyNames']}",
+                                                                    "severity": "@{items('For_each_IOC')['severity']}",
+                                                                    "tags": "@{items('For_each_IOC')['tags']}",
+                                                                    "targetProduct": "@{items('For_each_IOC')['targetProduct']}",
+                                                                    "threatType": "@{items('For_each_IOC')['threatType']}",
+                                                                    "tlpLevel": "@{items('For_each_IOC')['tlpLevel']}",
+                                                                    "url": "@{items('For_each_IOC')['url']}"
+                                                                },
+                                                                "headers": {
+                                                                    "content-type": "application/json"
+                                                                },
+                                                                "method": "POST",
+                                                                "uri": "https://graph.microsoft.com/beta/security/tiIndicators"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "Process_file_has_MD5_records": {
+                                                    "case": "md5",
+                                                    "actions": {
+                                                        "HTTP3": {
+                                                            "runAfter": {},
+                                                            "type": "Http",
+                                                            "inputs": {
+                                                                "authentication": {
+                                                                    "audience": "https://graph.microsoft.com",
+                                                                    "clientId": "@variables('ClientID')",
+                                                                    "secret": "@variables('AppSecret')",
+                                                                    "tenant": "@variables('Tenant')",
+                                                                    "type": "ActiveDirectoryOAuth"
+                                                                },
+                                                                "body": {
+                                                                    "FileCreatedDateTime": " @{utcNow()}",
+                                                                    "IP": "0.0.0.0",
+                                                                    "action": "@{items('For_each_IOC')['action']}",
+                                                                    "activityGroupNames": "@{items('For_each_IOC')['activityGroupNames']}",
+                                                                    "additionalInformation": "@{items('For_each_IOC')['additionalInformation']}",
+                                                                    "confidence": "@variables('confidence')",
+                                                                    "description": "@{items('For_each_IOC')['description']}",
+                                                                    "expirationDateTime": "@{addDays(utcNow(), variables('KeepForDays'))}",
+                                                                    "externalId": "@{items('For_each_IOC')['externalId']}",
+                                                                    "fileHashType": "md5",
+                                                                    "fileHashValue": "@{items('For_each_IOC')['fileHashValue']}",
+                                                                    "indicatorProvider": "@{items('For_each_IOC')['indicatorProvider']}",
+                                                                    "killChain": "@{items('For_each_IOC')['killChain']}",
+                                                                    "malwareFamilyNames": "@{items('For_each_IOC')['malwareFamilyNames']}",
+                                                                    "severity": "@{items('For_each_IOC')['severity']}",
+                                                                    "tags": "@{items('For_each_IOC')['tags']}",
+                                                                    "targetProduct": "@{items('For_each_IOC')['targetProduct']}",
+                                                                    "threatType": "@{items('For_each_IOC')['threatType']}",
+                                                                    "tlpLevel": "@{items('For_each_IOC')['tlpLevel']}"
+                                                                },
+                                                                "headers": {
+                                                                    "content-type": "application/json"
+                                                                },
+                                                                "method": "POST",
+                                                                "uri": "https://graph.microsoft.com/beta/security/tiIndicators"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "Process_file_has_SHA1_records": {
+                                                    "case": "sha1",
+                                                    "actions": {
+                                                        "HTTP4": {
+                                                            "runAfter": {},
+                                                            "type": "Http",
+                                                            "inputs": {
+                                                                "authentication": {
+                                                                    "audience": "https://graph.microsoft.com",
+                                                                    "clientId": "@variables('ClientID')",
+                                                                    "secret": "@variables('AppSecret')",
+                                                                    "tenant": "@variables('Tenant')",
+                                                                    "type": "ActiveDirectoryOAuth"
+                                                                },
+                                                                "body": {
+                                                                    "FileCreatedDateTime": " @{utcNow()}",
+                                                                    "IP": "0.0.0.0",
+                                                                    "action": "@{items('For_each_IOC')['action']}",
+                                                                    "activityGroupNames": "@{items('For_each_IOC')['activityGroupNames']}",
+                                                                    "additionalInformation": "@{items('For_each_IOC')['additionalInformation']}",
+                                                                    "confidence": "@variables('confidence')",
+                                                                    "description": "@{items('For_each_IOC')['description']}",
+                                                                    "expirationDateTime": "@{addDays(utcNow(), variables('KeepForDays'))}",
+                                                                    "externalId": "@{items('For_each_IOC')['externalId']}",
+                                                                    "fileHashType": "sha1",
+                                                                    "fileHashValue": "@{items('For_each_IOC')['fileHashValue']}",
+                                                                    "indicatorProvider": "@{items('For_each_IOC')['indicatorProvider']}",
+                                                                    "killChain": "@{items('For_each_IOC')['killChain']}",
+                                                                    "malwareFamilyNames": "@{items('For_each_IOC')['malwareFamilyNames']}",
+                                                                    "severity": "@{items('For_each_IOC')['severity']}",
+                                                                    "tags": "@{items('For_each_IOC')['tags']}",
+                                                                    "targetProduct": "@{items('For_each_IOC')['targetProduct']}",
+                                                                    "threatType": "@{items('For_each_IOC')['threatType']}",
+                                                                    "tlpLevel": "@{items('For_each_IOC')['tlpLevel']}"
+                                                                },
+                                                                "headers": {
+                                                                    "content-type": "application/json"
+                                                                },
+                                                                "method": "POST",
+                                                                "uri": "https://graph.microsoft.com/beta/security/tiIndicators"
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "Process_file_has_SHA256_records": {
+                                                    "case": "sha256",
+                                                    "actions": {
+                                                        "HTTP5": {
+                                                            "runAfter": {},
+                                                            "type": "Http",
+                                                            "inputs": {
+                                                                "authentication": {
+                                                                    "audience": "https://graph.microsoft.com",
+                                                                    "clientId": "@variables('ClientID')",
+                                                                    "secret": "@variables('AppSecret')",
+                                                                    "tenant": "@variables('Tenant')",
+                                                                    "type": "ActiveDirectoryOAuth"
+                                                                },
+                                                                "body": {
+                                                                    "FileCreatedDateTime": " @{utcNow()}",
+                                                                    "IP": "0.0.0.0",
+                                                                    "action": "@{items('For_each_IOC')['action']}",
+                                                                    "activityGroupNames": "@{items('For_each_IOC')['activityGroupNames']}",
+                                                                    "additionalInformation": "@{items('For_each_IOC')['additionalInformation']}",
+                                                                    "confidence": "@variables('confidence')",
+                                                                    "description": "@{items('For_each_IOC')['description']}",
+                                                                    "expirationDateTime": "@{addDays(utcNow(), variables('KeepForDays'))}",
+                                                                    "externalId": "@{items('For_each_IOC')['externalId']}",
+                                                                    "fileHashType": "sha256",
+                                                                    "fileHashValue": "@{items('For_each_IOC')['fileHashValue']}",
+                                                                    "indicatorProvider": "@{items('For_each_IOC')['indicatorProvider']}",
+                                                                    "killChain": "@{items('For_each_IOC')['killChain']}",
+                                                                    "malwareFamilyNames": "@{items('For_each_IOC')['malwareFamilyNames']}",
+                                                                    "severity": "@{items('For_each_IOC')['severity']}",
+                                                                    "tags": "@{items('For_each_IOC')['tags']}",
+                                                                    "targetProduct": "@{items('For_each_IOC')['targetProduct']}",
+                                                                    "threatType": "@{items('For_each_IOC')['threatType']}",
+                                                                    "tlpLevel": "@{items('For_each_IOC')['tlpLevel']}"
+                                                                },
+                                                                "headers": {
+                                                                    "content-type": "application/json"
+                                                                },
+                                                                "method": "POST",
+                                                                "uri": "https://graph.microsoft.com/beta/security/tiIndicators"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "default": {
+                                                "actions": {}
+                                            },
+                                            "expression": "@items('For_each_IOC')['indicatorType']",
+                                            "type": "Switch"
+                                        }
+                                    },
+                                    "runAfter": {
+                                        "Parse_JSON": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "Foreach"
+                                },
+                                "Get_CSV_using_Log_Analytics": {
+                                    "runAfter": {
+                                        "Create_SAS_URI_for_each_file": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "body": "externaldata (@{variables('columnNames')})[@\"@{body('Create_SAS_URI_for_each_file')?['WebUrl']}\"] with (ignoreFirstRecord=true)",
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azuremonitorlogs']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/queryData",
+                                        "queries": {
+                                            "resourcegroups": "[parameters('Sentinel Resource Group')]",
+                                            "resourcename": "[parameters('Sentinel Workspace')]",
+                                            "resourcetype": "Log Analytics Workspace",
+                                            "subscriptions": "[subscription().subscriptionId]",
+                                            "timerange": "Last 7 days"
+                                        }
+                                    }
+                                },
+                                "Parse_JSON": {
+                                    "runAfter": {
+                                        "Get_CSV_using_Log_Analytics": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "ParseJson",
+                                    "inputs": {
+                                        "content": "@body('Get_CSV_using_Log_Analytics')?['value']",
+                                        "schema": {
+                                            "items": {
+                                                "properties": {
+                                                    "FileCreatedDateTime": {},
+                                                    "action": {
+                                                        "type": "string"
+                                                    },
+                                                    "activityGroupNames": {
+                                                        "type": "string"
+                                                    },
+                                                    "additionalInformation": {
+                                                        "type": "string"
+                                                    },
+                                                    "confidence": {},
+                                                    "description": {
+                                                        "type": "string"
+                                                    },
+                                                    "domainName": {
+                                                        "type": "string"
+                                                    },
+                                                    "emailSenderAddress": {
+                                                        "type": "string"
+                                                    },
+                                                    "expirationDateTime": {},
+                                                    "externalId": {
+                                                        "type": "string"
+                                                    },
+                                                    "fileHashValue": {
+                                                        "type": "string"
+                                                    },
+                                                    "indicatorProvider": {
+                                                        "type": "string"
+                                                    },
+                                                    "indicatorType": {
+                                                        "type": "string"
+                                                    },
+                                                    "killChain": {
+                                                        "type": "string"
+                                                    },
+                                                    "malwareFamilyNames": {
+                                                        "type": "string"
+                                                    },
+                                                    "networkIPv4": {
+                                                        "type": "string"
+                                                    },
+                                                    "severity": {
+                                                        "type": "integer"
+                                                    },
+                                                    "tags": {
+                                                        "type": "string"
+                                                    },
+                                                    "targetProduct": {
+                                                        "type": "string"
+                                                    },
+                                                    "threatType": {
+                                                        "type": "string"
+                                                    },
+                                                    "url": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "indicatorType",
+                                                    "fileHashValue",
+                                                    "emailSenderAddress",
+                                                    "networkIPv4",
+                                                    "url",
+                                                    "domainName",
+                                                    "FileCreatedDateTime",
+                                                    "action",
+                                                    "activityGroupNames",
+                                                    "additionalInformation",
+                                                    "confidence",
+                                                    "description",
+                                                    "expirationDateTime",
+                                                    "externalId",
+                                                    "indicatorProvider",
+                                                    "killChain",
+                                                    "malwareFamilyNames",
+                                                    "severity",
+                                                    "tags",
+                                                    "targetProduct",
+                                                    "threatType"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                                "Gather_file_information_-_Set_the_folder_name_here": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Foreach"
+                        },
+                        "Gather_file_information_-_Set_the_folder_name_here": {
+                            "runAfter": {
+                                "Set_JSON-style_column_list": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "metadata": {
+                                "JTJmcHJvY2Vzc2luZzI=": "ADD YOUR OWN VALUE",
+                                "JTJmcHJvY2Vzc3RpY3N2": "ADD YOUR OWN VALUE"
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent(variables('accountName')))}/foldersV2/@{encodeURIComponent(encodeURIComponent('JTJmcHJvY2Vzc3RpY3N2'))}",
+                                "queries": {
+                                    "nextPageMarker": "",
+                                    "useFlatListing": false
+                                }
+                            }
+                        },
+                        "Set_JSON-style_column_list": {
+                            "runAfter": {
+                                "Set_storage_account_name": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "columnNames",
+                                        "type": "string",
+                                        "value": "indicatorType:string, fileHashValue:string, emailSenderAddress:string, networkIPv4:string, url:string, domainName:string, FileCreatedDateTime:datetime, action:string, activityGroupNames:string, additionalInformation:string, confidence:int, description:string, expirationDateTime:datetime, externalId:string, indicatorProvider:string, killChain:string, malwareFamilyNames:string, severity:int, tags:string, targetProduct:string, threatType:string, tlpLevel:string"
+                                    }
+                                ]
+                            }
+                        },
+                        "Set_storage_account_name": {
+                            "runAfter": {
+                                "Default_Provider_Confidence_Score_(0-100)": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "accountName",
+                                        "type": "string",
+                                        "value": "ADD YOUR OWN VALUE"
+                                    }
+                                ]
+                            }
+                        },
+                        "TenantID": {
+                            "runAfter": {},
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "Tenant",
+                                        "type": "string",
+                                        "value": "ADD YOUR OWN VALUE"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureblob": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureBlobConnectionName'))]",
+                                "connectionName": "[variables('AzureBlobConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureblob')]"
+                            },
+                            "azureloganalyticsdatacollector": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureLAConnectionName'))]",
+                                "connectionName": "[variables('AzureLAConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azureloganalyticsdatacollector')]"
+                            },
+                            "azuremonitorlogs": {
+                                "connectionId": "[resourceId('Microsoft.Web/connections', variables('AzureMonitorConnectionName'))]",
+                                "connectionName": "[variables('AzureMonitorConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', resourceGroup().location, '/managedApis/azuremonitorlogs')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}
