@@ -1,5 +1,4 @@
 <img src=https://github.com/Azure/Azure-Sentinel/blob/master/Playbooks/logic_app_logo.png alt="LogicApps Logo" width="350" height="200">
-
 # Get-BlobStorageCSVtoWatchlist
 Author: Andrew Blumhardt
 
@@ -32,12 +31,12 @@ After selecting a playbook, in the Azure portal:
 * Consider adding activities to archive CSV files after processing
 * Consider testing a blob-update trigger
 
-## References:
-* <em>[External Data Operator Documentation](https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/externaldata-operator?pivots=azuremonitor)</em>
-* <em>[Create and manage blobs in Azure Blob Storage by using Azure Logic Apps](https://docs.microsoft.com/en-us/azure/connectors/connectors-create-api-azureblobstorage)</em>
-
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FAndrewBlumhardt%2FLogic-Apps%2Fblob%2FPlaybooks%2FPlaybooks%2FGet-BlobStorageCSVtoWatchlist%2Fazuredeploy.json)
 [![Deploy to Azure Gov](https://aka.ms/deploytoazuregovbutton)](https://portal.azure.us/#create/Microsoft.Template/uri/https%3A%2F%2Fgithub.com%2FAndrewBlumhardt%2FLogic-Apps%2Fblob%2FPlaybooks%2FPlaybooks%2FGet-BlobStorageCSVtoWatchlist%2Fazuredeploy.json)
+
+## References:
+* <a href="https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/externaldata-operator?pivots=azuremonitor" target="_blank">External Data Operator Documentation</a>
+* <a href="https://docs.microsoft.com/en-us/azure/connectors/connectors-create-api-azureblobstorage" target="_blank">Create and manage blobs in Azure Blob Storage by using Azure Logic Apps</a>
 
 ## Suggestions and feedback
 Let me know if you run into any problems or share your suggestions and feedback by sending email to andrew.blumhardt@microsoft.com
